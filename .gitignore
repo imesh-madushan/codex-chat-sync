@@ -1,0 +1,8 @@
+__pycache__/
+*.pyc
+*.partial
+*.chatbundle.zip
+.venv/
+build/
+dist/
+validation/
