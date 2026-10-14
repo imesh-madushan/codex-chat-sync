@@ -1,0 +1,2 @@
+# Optional desktop interface; the engine itself uses only the standard library.
+pywebview>=5.3
