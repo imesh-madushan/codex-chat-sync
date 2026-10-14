@@ -136,3 +136,44 @@ python -m unittest discover -s tests -v
 Real integration tests require `CHATSYNC_TEST_CODEX` (the actual executable) and `CHATSYNC_TEST_FIXTURE` (a local parent/fork regression fixture ZIP containing a nine-turn parent and its ten-turn descendant). They use isolated data folders, no accounts and no model calls. See `VALIDATION.md` for recorded results and remaining acceptance limits.
 
 Protocol reference: [official Codex app-server documentation](https://learn.chatgpt.com/docs/app-server).
+
+## Source layout and branches
+
+`main` contains the standard-library CLI and shared application code. Interface
+branches merge core updates from `main`; UI dependencies stay on those branches.
+The `terminal-ui` branch contains the optional Textual interface.
+
+```text
+chatsync/
+  core/                   Configuration, executable discovery, RPC, bundles,
+                          migration engine and ChatSyncService
+  interfaces/
+    cli/app.py            Command parsing, prompts and plain terminal output
+    terminal/app.py       Textual screens and presentation
+    terminal/launcher.py  Optional UI dispatch with CLI fallback
+tests/
+  core/                   Engine, service, bundle and dependency-boundary tests
+  cli/                    Command routing and selection tests
+  terminal/               Headless Textual interaction and launch routing tests
+chat_sync.py              Stable command entry point; UI dispatch on this branch
+run.cmd                   Windows launcher
+```
+
+Interfaces depend on `chatsync.core`; core never imports an interface framework.
+`ChatSyncService` provides settings, inventory, previews, bundle review, migration
+and operation history for future interfaces. Engine progress callbacks are optional;
+failing display callbacks cannot interrupt a migration. `import_bundle` also accepts
+`selected_nodes` to choose exact bundled branch snapshots, while the existing CLI
+`--chat` option continues to select logical chat families.
+
+Python module imports now use `chatsync.core.*` and
+`chatsync.interfaces.cli.app`. Existing shell commands, device settings, bundle
+format and receipt locations remain unchanged.
+
+Run the default checks with `python -m unittest discover -s tests -v`.
+Native integration checks additionally require `CHATSYNC_TEST_CODEX` and
+`CHATSYNC_TEST_FIXTURE`, as described in the integration test module.
+
+The terminal interface uses `chatsync.core.service.ChatSyncService` directly.
+There is no separate UI migration engine or service implementation. The core
+modules and plain CLI implementation are inherited unchanged from `main`.

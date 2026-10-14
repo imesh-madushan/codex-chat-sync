@@ -13,9 +13,9 @@ from textual.widgets import (Button, Checkbox, DataTable, Footer, Header, Input,
                              Label, LoadingIndicator, RichLog, Select, SelectionList,
                              Static, TabbedContent, TabPane)
 
-from .bundle import normalized_path
-from .config import SyncError
-from .ui_service import UIService
+from ...core.bundle import normalized_path
+from ...core.config import SyncError
+from ...core.service import ChatSyncService
 
 ACTION_LABELS = {"same": "DUPLICATE", "stale": "OLDER"}
 
@@ -130,7 +130,7 @@ class ChatSyncApp(App):
 
     def __init__(self, settings_path=None, backend=None):
         super().__init__()
-        self.backend = backend or UIService(settings_path)
+        self.backend = backend or ChatSyncService(settings_path)
         self.register_theme(Theme(name="chat-sync", primary="#14b8a6", secondary="#334155",
                                   accent="#2dd4bf", foreground="#e2e8f0", background="#0b1220",
                                   surface="#101c2f", panel="#17263b", dark=True))

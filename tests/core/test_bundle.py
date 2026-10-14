@@ -1,4 +1,3 @@
-import io
 import json
 from pathlib import Path
 import tempfile
@@ -6,10 +5,8 @@ import unittest
 import uuid
 import zipfile
 
-from chatsync.bundle import digest, encode, read_bundle, relation, write_bundle
-from chatsync.cli import choose
-from chatsync.config import SyncError, make_config, state_lock, relocate_state
-from unittest.mock import patch
+from chatsync.core.bundle import digest, encode, read_bundle, relation, write_bundle
+from chatsync.core.config import SyncError, make_config, state_lock, relocate_state
 
 
 def sample():
@@ -71,10 +68,6 @@ class BundleTests(unittest.TestCase):
         self.assertEqual(relation([a, b], [a]), "stale")
         self.assertEqual(relation([a, b], [a, c]), "branch")
         self.assertEqual(relation([a], [dict(a, sha256="different")]), "branch")
-
-    def test_multi_selection_ranges_and_validation(self):
-        with patch("builtins.input", side_effect=["0", "8-10", "1,3-4"]), patch("sys.stdout", new=io.StringIO()):
-            self.assertEqual(choose(list("abcde"), "chats"), [0, 2, 3])
 
     def test_exclusive_local_state_lock(self):
         with tempfile.TemporaryDirectory() as directory:

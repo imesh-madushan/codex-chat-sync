@@ -15,10 +15,9 @@ except ModuleNotFoundError:
 
 if textual is not None:
     from textual.widgets import Button, Input, SelectionList, Select, Static, TabbedContent
-    from chatsync.tui import ChatSyncApp, ConfirmScreen
+    from chatsync.interfaces.terminal.app import ChatSyncApp, ConfirmScreen
 
-from chatsync.config import SyncError
-from chatsync.ui_service import UIService, file_fingerprint
+from chatsync.core.config import SyncError
 
 
 class FakeBackend:
@@ -257,65 +256,17 @@ class TerminalTests(unittest.IsolatedAsyncioTestCase):
                 self.assertNotIsInstance(app.screen, ConfirmScreen)
 
 
-class ServiceTests(unittest.TestCase):
-    def test_selecting_one_of_two_branches_routes_only_its_snapshot(self):
-        with tempfile.TemporaryDirectory() as directory:
-            root = Path(directory)
-            bundle = root / "fixture.zip"
-            bundle.write_bytes(b"immutable fixture")
-            target = root / "workspace"
-            target.mkdir()
-            service = UIService(root / "config.json")
-            service.config = {"mappings": {}}
-            manifest = {"chats": [{"source_thread_id": "one", "node": "snapshot-one", "cwd": "source"},
-                                   {"source_thread_id": "two", "node": "snapshot-two", "cwd": "source"}]}
-            fingerprint = file_fingerprint(bundle)
-            with patch("chatsync.ui_service.read_bundle", return_value=(manifest, {})), \
-                    patch("chatsync.ui_service.import_bundle", return_value=[]) as migration:
-                service.analyze(bundle, ["two"], {"source": str(target)}, {}, fingerprint, lambda text: None)
-                self.assertEqual(migration.call_args.kwargs["selected_nodes"], ["snapshot-two"])
-                service.perform_import(bundle, ["two"], {"source": str(target)}, {}, fingerprint, lambda text: None)
-                self.assertEqual(migration.call_args.kwargs["selected_nodes"], ["snapshot-two"])
-                self.assertTrue(service.settings_path.exists())
-                bundle.write_bytes(b"modified fixture")
-                with self.assertRaisesRegex(SyncError, "changed"):
-                    service.perform_import(bundle, ["two"], {"source": str(target)}, {}, fingerprint, lambda text: None)
-                self.assertEqual(migration.call_count, 2)
-
-    def test_include_archived_retains_active_chats(self):
-        with tempfile.TemporaryDirectory() as directory:
-            service = UIService(Path(directory) / "settings.json")
-            service.config = {"device_name": "Device A"}
-            active, archived = {"id": "active"}, {"id": "archived"}
-            with patch("chatsync.ui_service.inventory", side_effect=[([active], []), ([archived], [])]), \
-                    patch.object(service, "bundles", return_value=[]), patch.object(service, "history", return_value=[]):
-                threads, _, _, _ = service.snapshot(archived=True)
-                self.assertEqual({t["id"] for t in threads}, {"active", "archived"})
-
-    def test_missing_destination_stops_before_migration(self):
-        with tempfile.TemporaryDirectory() as directory:
-            root = Path(directory)
-            bundle = root / "fixture.zip"
-            bundle.write_bytes(b"fixture")
-            service = UIService(root / "settings.json")
-            service.config = {"mappings": {}}
-            manifest = {"chats": [{"source_thread_id": "one", "node": "node", "cwd": "source"}]}
-            with patch("chatsync.ui_service.read_bundle", return_value=(manifest, {})), \
-                    patch("chatsync.ui_service.import_bundle") as migration:
-                with self.assertRaisesRegex(SyncError, "destination"):
-                    service.analyze(bundle, ["one"], {"source": ""}, {}, file_fingerprint(bundle), lambda text: None)
-                migration.assert_not_called()
-
+class RoutingTests(unittest.TestCase):
     @unittest.skipUnless(textual is not None, "Install requirements-tui.txt for routing tests")
     def test_tui_and_legacy_export_routes_remain_separate(self):
-        from chatsync.cli import main
-        with patch("chatsync.tui.run_tui", return_value=0) as launch:
+        from chatsync.interfaces.terminal.launcher import main
+        with patch("chatsync.interfaces.terminal.app.run_tui", return_value=0) as launch:
             self.assertEqual(main(["tui"]), 0)
             launch.assert_called_once_with(None)
-        with patch("chatsync.cli.load_config", return_value={}), \
-                patch("chatsync.cli.select_export", return_value=["chat"]), \
-                patch("chatsync.cli.export_chats", return_value=Path("bundle.zip")) as export, \
-                patch("chatsync.tui.run_tui") as launch, patch("sys.stdout", new=io.StringIO()):
+        with patch("chatsync.interfaces.cli.app.load_config", return_value={}), \
+                patch("chatsync.interfaces.cli.app.select_export", return_value=["chat"]), \
+                patch("chatsync.interfaces.cli.app.export_chats", return_value=Path("bundle.zip")) as export, \
+                patch("chatsync.interfaces.terminal.app.run_tui") as launch, patch("sys.stdout", new=io.StringIO()):
             self.assertEqual(main(["export", "--thread", "chat"]), 0)
             export.assert_called_once()
             launch.assert_not_called()

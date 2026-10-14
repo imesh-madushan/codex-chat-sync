@@ -15,12 +15,12 @@ import unittest
 import uuid
 import zipfile
 
-from chatsync.bundle import digest, read_bundle, records, write_bundle
-from chatsync.bundle import encode, find_rollout
-from chatsync.config import atomic_json, make_config
-from chatsync.engine import (export_chats, import_bundle, inventory, ledger_path, load_ledger,
+from chatsync.core.bundle import digest, read_bundle, records, write_bundle
+from chatsync.core.bundle import encode, find_rollout
+from chatsync.core.config import atomic_json, make_config
+from chatsync.core.engine import (export_chats, import_bundle, inventory, ledger_path, load_ledger,
                              rollback)
-from chatsync.rpc import Codex
+from chatsync.core.rpc import Codex
 
 EXE = os.environ.get("CHATSYNC_TEST_CODEX")
 FIXTURE = os.environ.get("CHATSYNC_TEST_FIXTURE")
@@ -74,7 +74,7 @@ class CodexIntegration(unittest.TestCase):
             self.assertGreaterEqual(len(manifest["nodes"]), 3)
             print("TERMINAL setup, inspect, project selection and dry-run")
             profile = root / "terminal-config.json"
-            program = Path(__file__).resolve().parents[1] / "chat_sync.py"
+            program = Path(__file__).resolve().parents[2] / "chat_sync.py"
             def command(*argv):
                 result = subprocess.run([sys.executable, str(program), "--config", str(profile), *map(str, argv)],
                                         capture_output=True, text=True, encoding="utf-8", timeout=60,

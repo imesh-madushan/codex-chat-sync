@@ -45,3 +45,34 @@ The Codex CLI resume command opened the imported copy and displayed its title, d
 - Python 3.11+ is required. Windows has device-level acceptance coverage; macOS/Linux do not yet have equivalent coverage.
 - Updates retain earlier copies. Rollback archives imported copies rather than deleting messages. Whole-project selection uses native project membership; folder selection covers chats whose membership is empty.
 - An existing file-transfer service carries immutable bundles. Automatic import/watch scheduling is not part of this release.
+
+## CLI-only core restructure (0.2.0)
+
+The reorganized `main` branch passed all 16 tests on Windows with Python 3.14
+and Codex CLI 0.162.1, with no skipped tests. The native integration run used
+the existing private regression fixture and isolated data folders; it did not
+import into production chat storage or invoke a model.
+
+Additional checks cover exact branch-snapshot selection, optional progress
+callbacks, bundle-change rejection between review and import, destination
+validation, combined active/archived inventory and CLI routing. A dependency
+check enforces that core modules do not import interfaces or UI packages.
+The existing CLI launcher and help output were also verified.
+
+This run verifies the new package layout locally. The earlier two-device
+results above describe the original release; the restructure has not yet
+been rerun on the second device or on macOS/Linux.
+
+## Terminal interface on shared core (0.2.0)
+
+The terminal-ui branch was adapted to the reorganized main branch and passed
+all 23 tests on Windows with Python 3.14, Textual 8.2.8 and Codex CLI 0.162.1,
+with no skipped tests. This includes the 16 shared core/CLI tests and seven
+terminal interaction/routing tests. Native checks used isolated data folders;
+production chats were not modified. Launcher routing was rerun after the final
+help/error handling adjustment and passed.
+
+Core modules, the plain CLI implementation and their tests match main exactly.
+Textual screens and optional launch dispatch live in interfaces/terminal, using
+the shared ChatSyncService. The duplicate UI service was removed. This updated
+branch has not yet been tested on another device or operating system.

@@ -1,4 +1,4 @@
-"""UI operations without a dependency on Textual or terminal input."""
+"""Shared application operations without presentation dependencies."""
 import copy
 import hashlib
 from pathlib import Path
@@ -7,7 +7,7 @@ import socket
 from .bundle import read_bundle
 from .config import (SyncError, atomic_json, config_path, load_config, make_config,
                      relocate_state)
-from .engine import export_chats, import_bundle, inventory, load_ledger, rollback
+from .engine import export_chats, import_bundle, inventory, load_ledger, rollback, _report
 from .rpc import Codex, executable_version
 
 
@@ -16,7 +16,7 @@ def file_fingerprint(path):
         return hashlib.file_digest(stream, "sha256").hexdigest()
 
 
-class UIService:
+class ChatSyncService:
     def __init__(self, settings_path=None):
         self.settings_path = Path(settings_path or config_path()).expanduser().resolve()
         self.config = load_config(self.settings_path) if self.settings_path.exists() else None
@@ -27,7 +27,7 @@ class UIService:
         return self.config
 
     def defaults(self):
-        from .cli import suggest_executable
+        from .discovery import suggest_executable
         values = {"codex_home": str(Path.home() / ".codex"),
                   "codex_executable": suggest_executable(), "exchange_dir": "",
                   "state_dir": str(self.settings_path.parent / "state"),
@@ -68,7 +68,7 @@ class UIService:
         manifest, _ = read_bundle(path)
         return path, manifest, file_fingerprint(path)
 
-    def export(self, physical_ids, progress):
+    def export(self, physical_ids, progress=None):
         return export_chats(self.require_config(), physical_ids, progress=progress)
 
     def _import_options(self, path, physical_ids, destinations, projects, expected_hash):
@@ -92,14 +92,14 @@ class UIService:
             mapped[source] = str(target)
         return path, mapped, {s: projects.get(s) for s in sources}, [c["node"] for c in chats]
 
-    def analyze(self, path, physical_ids, destinations, projects, expected_hash, progress):
+    def analyze(self, path, physical_ids, destinations, projects, expected_hash, progress=None):
         options = self._import_options(path, physical_ids, destinations, projects, expected_hash)
         path, mapped, projects, nodes = options
         plans = import_bundle(self.require_config(), path, mapped, projects,
                               dry_run=True, selected_nodes=nodes, progress=progress)
         return plans
 
-    def perform_import(self, path, physical_ids, destinations, projects, expected_hash, progress):
+    def perform_import(self, path, physical_ids, destinations, projects, expected_hash, progress=None):
         options = self._import_options(path, physical_ids, destinations, projects, expected_hash)
         path, mapped, projects, nodes = options
         plans = import_bundle(self.require_config(), path, mapped, projects,
@@ -154,7 +154,7 @@ class UIService:
                          "title": ", ".join(p["title"] for p in receipt.get("plans", [])) or Path(record.get("bundle", "")).name})
         return sorted(rows, key=lambda r: r["created_at"], reverse=True)
 
-    def rollback(self, operation, progress):
-        progress("Archiving imported copies; retaining their messages and original chats")
+    def rollback(self, operation, progress=None):
+        _report(progress, "Archiving imported copies; retaining their messages and original chats")
         rollback(self.require_config(), operation)
         return self.history()
