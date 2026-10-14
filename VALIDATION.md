@@ -26,6 +26,12 @@ The integration test uses locally supplied conversation rollouts and checks:
 
 Unit checks cover checksums, unsafe archive names, missing dependencies, immutable publication, history comparison, multi-selection, local operation locks and relocating managed state while retaining a backup.
 
+## Terminal interface checks
+
+The Textual 8.2.8 interface was checked in headless terminal sessions on Windows with Python 3.14. Tests cover keyboard selection, retention of hidden selections across filters, first-launch settings, compact layouts, F3 previews, import-review invalidation, explicit confirmation/cancellation, exact branch selection, bundle-change detection, saved mappings, rollback and prevention of overlapping operations or quitting during a transaction.
+
+The combined local run passed all 19 tests: nine existing core/native checks and ten interface/service checks. The native Codex regression test also verifies exact selection of one divergent branch and progress reporting. A read-only smoke test loaded the saved configuration, the configured chat and project inventories without performing a live migration or model turn. Published screenshots use synthetic conversations and neutral paths; private regression fixtures and detailed logs remain excluded from Git.
+
 ## Continuation and CLI checks
 
 A completed conversation was exported and imported as a temporary test copy with fresh IDs. It restored ten completed turns and successfully completed an additional verification turn, recalling earlier context without calling tools or modifying files. The original conversation was retained.

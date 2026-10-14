@@ -1,30 +1,58 @@
 # Codex Chat Sync
 
-A standalone terminal tool for moving selected Codex chats between devices. Python 3.11+ and an installed Codex CLI are the only runtime requirements. No web server, hosted service, Python packages, SSH, or Syncthing API access.
+A terminal tool for moving selected Codex chats between devices. The optional Textual interface adds keyboard navigation, multiple selection, previews and saved settings. Core commands require only Python 3.11+ and a compatible Codex CLI. No web server, hosted service or SSH is required.
 
 ## Start
 
-From this folder, run:
+Install the optional interface in a project-local environment. On Windows:
 
 ```powershell
-python chat_sync.py setup
-python chat_sync.py
-```
-
-Windows launcher:
-
-```powershell
-.\run.cmd setup
+python -m venv .venv
+.\.venv\Scripts\python.exe -m pip install -r requirements-tui.txt
 .\run.cmd
 ```
 
-`run.cmd` uses `CHATSYNC_PYTHON` when set, then the standard per-user Python installation, then the `py -3` launcher. For another Python installation, set `CHATSYNC_PYTHON` to the interpreter’s absolute path. Other operating systems run `python3 chat_sync.py` directly.
+`run.cmd` prefers `CHATSYNC_PYTHON` when set, then the project’s `.venv`, then a standard per-user Python installation or the `py -3` launcher. No virtual-environment activation or global package installation is needed. If `python` opens the Microsoft Store, use an installed Python interpreter or the `py -3` launcher to create the environment.
 
-If `python` opens the Microsoft Store, use the full path to your installed Python executable instead. On Windows, setup requires the actual `codex.exe`, rather than the npm `.cmd`/PowerShell wrapper. An installed npm executable is suggested when found; you can enter any other installation.
+On macOS/Linux, the interface can be launched with:
+
+```sh
+python3 -m venv .venv
+.venv/bin/python -m pip install -r requirements-tui.txt
+.venv/bin/python chat_sync.py tui
+```
+
+Textual supports these platforms; the complete migration workflow has device-level acceptance coverage on Windows only.
+
+The first interface launch opens Settings when no configuration exists. Enter the device paths and choose **Save device settings**. Existing configuration is reused automatically. On Windows, select the actual `codex.exe`, rather than the npm `.cmd`/PowerShell wrapper.
+
+Without the optional dependency, use the original text menu and setup commands:
+
+```text
+python chat_sync.py setup
+python chat_sync.py menu
+```
+
+Launching without a command opens the Textual interface when installed and otherwise falls back to the text menu. Explicit `tui` mode explains how to install the dependency if it is missing. All single-line export/import commands remain available.
 
 Setup asks for your Codex data folder, Codex executable, bundle exchange folder and a **local state folder outside your synced folders**. Paths are entered/confirmed by you and saved per device. Settings are independent of the account name, project location and device pair. Settings → Edit device paths changes them later. Each device uses its own settings and receipts, even when this program's source folder is synced.
 
 Default settings: `%LOCALAPPDATA%\CodexChatSync\config.json` on Windows; `~/.local/share/CodexChatSync/config.json` elsewhere. Override with `--config PATH` before the command, or `CHATSYNC_CONFIG`.
+
+## Terminal interface
+
+![Chat browser with synthetic example conversations](docs/terminal-chats.svg)
+
+- **Chats:** search titles/folders, filter by project or folder, select multiple chats with Space, and view the latest message and completed-turn count. Selection survives filtering. Select visible chats in several project filters to export multiple projects together.
+- **Import:** load a bundle, select exact conversation versions, map only their required destination folders, and review New/Update/Branch/Duplicate/Older/Relocate results before confirmation. Changing selection or mappings invalidates the preview. A changed bundle must be loaded again.
+- **History:** review committed or interrupted operation journals and confirm rollback of imported copies.
+- **Settings:** edit saved device paths, device label and folder/project mappings.
+
+Keyboard: arrows navigate chat lists, Space toggles selections, Tab moves between controls, `/` focuses search, Ctrl+E exports selected chats, Ctrl+R refreshes, F3 opens the conversation preview, F4 includes/hides archived chats, Ctrl+Q quits, and Escape closes dialogs. Mouse input is supported. Busy operations run in background workers; overlapping operations and quitting during a transaction are prevented.
+
+Small terminals use a compact layout with an F3 preview dialog. Import completion shows resume commands in a dialog as well as the activity panel. Progress shows actual phases rather than an estimated percentage. The interface respects `NO_COLOR`; a modern color-capable terminal displays the dark teal theme.
+
+![Import review using synthetic example conversations](docs/terminal-import.svg)
 
 ## Configuration examples
 
@@ -69,6 +97,8 @@ Continue using the returned resume ID: `codex resume ID`. Close the same chat in
 ## Commands
 
 ```text
+python chat_sync.py tui
+python chat_sync.py menu
 python chat_sync.py list
 python chat_sync.py list --archived
 python chat_sync.py export --thread ID1 --thread ID2
@@ -97,7 +127,7 @@ Bundles contain private conversation text/tool outputs and may contain sensitive
 
 Codex path-resume and paginated-history APIs are experimental. The tool enables the required capability and fails when a build cannot reconstruct the exact exported history. It cannot promise compatibility with every future Codex storage version. Export currently requires all persisted turns to be completed; finish interrupted/active turns in Codex first.
 
-Unit tests:
+Core and optional interface tests (Textual interaction tests are skipped if the dependency is not installed):
 
 ```text
 python -m unittest discover -s tests -v

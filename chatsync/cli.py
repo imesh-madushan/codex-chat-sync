@@ -261,7 +261,7 @@ def print_inventory(config, archived=False):
 
 
 def main(argv=None):
-    parser = argparse.ArgumentParser(description="Portable Codex chat export/import. Python 3.11+; no third-party packages.")
+    parser = argparse.ArgumentParser(description="Portable Codex chat export/import. Python 3.11+; optional Textual interface.")
     parser.add_argument("--config", help="Device-local settings file (also CHATSYNC_CONFIG)")
     sub = parser.add_subparsers(dest="command")
     settings = sub.add_parser("setup", help="Enter or edit saved device paths")
@@ -285,6 +285,8 @@ def main(argv=None):
     inspection.add_argument("bundle")
     reverting = sub.add_parser("rollback", help="Archive an operation's imported copies")
     reverting.add_argument("operation")
+    sub.add_parser("tui", help="Open the polished terminal interface")
+    sub.add_parser("menu", help="Open the dependency-free text menu")
     sub.add_parser("doctor", help="Check executable/protocol and local paths")
     args = parser.parse_args(argv)
     try:
@@ -297,6 +299,17 @@ def main(argv=None):
             for chat in manifest["chats"]:
                 print(chat["logical_id"], chat["title"], len(chat["turns"]), "completed turns |", chat["cwd"])
             return 0
+        if args.command in (None, "tui"):
+            try:
+                from .tui import run_tui
+            except ModuleNotFoundError as exc:
+                if exc.name not in ("textual", "rich") and not str(exc.name).startswith(("textual.", "rich.")):
+                    raise
+                if args.command == "tui":
+                    raise SyncError("Install the interface dependency: python -m pip install -r requirements-tui.txt") from exc
+                print("Optional interface not installed; using the text menu. Install requirements-tui.txt to enable it.")
+            else:
+                return run_tui(args.config)
         config = load_config(args.config)
         if args.command == "list":
             print_inventory(config, args.archived)

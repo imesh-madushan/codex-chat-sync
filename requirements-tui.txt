@@ -1,0 +1,2 @@
+# Optional interactive terminal interface; core commands use only the standard library.
+textual==8.2.8
