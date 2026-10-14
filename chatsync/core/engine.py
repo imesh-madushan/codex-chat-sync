@@ -11,6 +11,16 @@ from .bundle import (Snapshot, digest, encode, find_rollout, image_paths, normal
 from .config import SyncError, atomic_json, state_lock
 from .rpc import Codex, executable_version
 
+
+def _report(progress, message):
+    if progress is not None:
+        try:
+            progress(message)
+        except Exception:
+            # A display callback must not abort a migration transaction.
+            pass
+
+
 IDENTITY_NAMESPACE = uuid.UUID("a31b0d74-9852-4980-807b-7e11465354ba")
 
 
@@ -58,7 +68,8 @@ def completed_turns(rpc, thread_id):
     return turns
 
 
-def export_chats(config, thread_ids, output=None, attachments=()):
+def export_chats(config, thread_ids, output=None, attachments=(), progress=None):
+    _report(progress, "Reading selected conversations")
     thread_ids = list(dict.fromkeys(thread_ids))
     if not thread_ids:
         raise SyncError("Select at least one chat.")
@@ -69,7 +80,8 @@ def export_chats(config, thread_ids, output=None, attachments=()):
         asset_paths = set(str(Path(p).expanduser().resolve()) for p in attachments)
         with Codex(config["codex_executable"], config["codex_home"]) as rpc:
             projects = {p["id"]: p for p in rpc.pages("project/list")}
-            for thread_id in thread_ids:
+            for index, thread_id in enumerate(thread_ids, 1):
+                _report(progress, f"Snapshotting conversation {index} of {len(thread_ids)}")
                 thread = rpc.call("thread/read", {"threadId": thread_id, "includeTurns": False})["thread"]
                 turns = completed_turns(rpc, thread_id)
                 node = snapshot.capture(thread_id, checkpoint=turns[-1]["id"])
@@ -82,6 +94,7 @@ def export_chats(config, thread_ids, output=None, attachments=()):
                               "archived": thread.get("archived", False), "node": node})
                 if completed_turns(rpc, thread_id) != turns:
                     raise SyncError("History changed while exporting. Retry when all selected chats are idle.")
+        _report(progress, "Collecting conversation attachments")
         assets = []
         for node in snapshot.nodes.values():
             for record in records(snapshot.members[node["member"]]):
@@ -109,10 +122,12 @@ def export_chats(config, thread_ids, output=None, attachments=()):
                     "chats": chats, "nodes": snapshot.nodes, "assets": assets}
         output = Path(output) if output else Path(config["exchange_dir"]) / (
             "chats-" + datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ") + "-" + uuid.uuid4().hex[:8] + ".chatbundle.zip")
+        _report(progress, "Checking and publishing the completed bundle")
         write_bundle(output, manifest, snapshot.members)
         for chat in chats:
             ledger["physical"].setdefault(chat["source_thread_id"], {"logical_id": chat["logical_id"], "role": "source"})
         atomic_json(ledger_path(config), ledger)
+        _report(progress, "Export complete")
         return output.resolve()
 
 
@@ -236,8 +251,15 @@ def verify_chats(rpc, manifest, ids, assets):
             raise SyncError("Reconstructed history differs from the exported checkpoint: " + chat["title"] + " (turn index " + mismatch + ")")
 
 
-def import_bundle(config, bundle, destinations, project_ids=None, selected=None, dry_run=False):
+def import_bundle(config, bundle, destinations, project_ids=None, selected=None, dry_run=False, progress=None, selected_nodes=None):
+    _report(progress, "Validating bundle checksums and dependencies")
     manifest, members = read_bundle(bundle)
+    if selected_nodes is not None:
+        nodes = set(selected_nodes)
+        available = {c["node"] for c in manifest["chats"]}
+        if not nodes or not nodes.issubset(available):
+            raise SyncError("Choose valid bundled conversation snapshots.")
+        manifest["chats"] = [c for c in manifest["chats"] if c["node"] in nodes]
     project_ids = project_ids or {}
     if selected is not None:
         selection = set(selected)
@@ -250,6 +272,7 @@ def import_bundle(config, bundle, destinations, project_ids=None, selected=None,
     with state_lock(config):
         ledger = load_ledger(config)
         plans = []
+        _report(progress, "Comparing completed histories on this device")
         with Codex(config["codex_executable"], config["codex_home"]) as rpc:
             active = list_threads(rpc)
             active_ids = {t["id"] for t in active}
@@ -290,16 +313,20 @@ def import_bundle(config, bundle, destinations, project_ids=None, selected=None,
                 plans.append({"logical_id": chat["logical_id"], "title": chat["title"], "action": classification,
                               "destination": destinations[chat["cwd"]], "node": chat["node"]})
         if dry_run:
+            _report(progress, "Import review is ready")
             return plans
         applicable = {p["node"] for p in plans if p["action"] not in ("same", "stale")}
         if not applicable:
+            _report(progress, "Selected histories are already available or newer on this device")
             return plans
         manifest["chats"] = [c for c in manifest["chats"] if c["node"] in applicable]
         operation = uuid.uuid4().hex
         assets_dir = Path(config["state_dir"]) / "assets"
         ids, rendered, mapped, asset_paths, assets = render_nodes(manifest, members, destinations, assets_dir)
+        _report(progress, "Preparing portable attachments")
         install_assets(manifest, members, asset_paths)
         # Validate without accounts/configuration or touching destination databases.
+        _report(progress, "Reconstructing histories in an isolated data folder")
         with tempfile.TemporaryDirectory(prefix="chat-sync-verify-") as temporary:
             lab = Path(temporary)
             with Codex(config["codex_executable"], lab) as rpc:
@@ -308,6 +335,7 @@ def import_bundle(config, bundle, destinations, project_ids=None, selected=None,
                 for chat in manifest["chats"]:
                     rpc.call("thread/resume", {"threadId": ids[chat["node"]], "excludeTurns": True})
                 verify_chats(rpc, manifest, ids, assets)
+        _report(progress, "Completed histories verified after restart")
         folder = Path(config["codex_home"]) / "sessions" / datetime.now().strftime("%Y/%m/%d")
         journal_path = Path(config["state_dir"]) / "operations" / (operation + ".json")
         journal = {"operation": operation, "status": "prepared", "thread_ids": list(ids.values()),
@@ -320,11 +348,13 @@ def import_bundle(config, bundle, destinations, project_ids=None, selected=None,
         try:
             with Codex(config["codex_executable"], config["codex_home"]) as rpc:
                 # Each file is new and exclusively created, never replacing an existing rollout.
-                for key, data in rendered.items():
+                for index, (key, data) in enumerate(rendered.items(), 1):
+                    _report(progress, f"Registering history {index} of {len(rendered)}")
                     one = {key: data}
                     register_nodes(rpc, manifest, ids, one, mapped, folder)
                     registered.append(ids[key])
                 verify_chats(rpc, manifest, ids, assets)
+                _report(progress, "Assigning conversation titles and destination projects")
                 for chat in manifest["chats"]:
                     physical = ids[chat["node"]]
                     plan = next(p for p in plans if p["node"] == chat["node"])
@@ -352,6 +382,7 @@ def import_bundle(config, bundle, destinations, project_ids=None, selected=None,
                     if normalized_path(thread["cwd"]) != normalized_path(destinations[chat["cwd"]]):
                         raise SyncError("Destination folder changed after restart.")
                 verify_chats(rpc, manifest, ids, assets)
+            _report(progress, "Verified destination histories; saving import receipts")
             ledger["imports"].append({"operation": operation, "bundle_sha256": digest(Path(bundle).read_bytes()),
                                       "thread_ids": list(selected_ids), "assets": assets, "plans": plans})
             atomic_json(ledger_path(config), ledger)
@@ -369,6 +400,7 @@ def import_bundle(config, bundle, destinations, project_ids=None, selected=None,
                     except SyncError:
                         pass
             raise
+        _report(progress, "Import complete")
         return plans
 
 

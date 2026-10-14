@@ -15,12 +15,12 @@ import unittest
 import uuid
 import zipfile
 
-from chatsync.bundle import digest, read_bundle, records, write_bundle
-from chatsync.bundle import encode, find_rollout
-from chatsync.config import atomic_json, make_config
-from chatsync.engine import (export_chats, import_bundle, inventory, ledger_path, load_ledger,
+from chatsync.core.bundle import digest, read_bundle, records, write_bundle
+from chatsync.core.bundle import encode, find_rollout
+from chatsync.core.config import atomic_json, make_config
+from chatsync.core.engine import (export_chats, import_bundle, inventory, ledger_path, load_ledger,
                              rollback)
-from chatsync.rpc import Codex
+from chatsync.core.rpc import Codex
 
 EXE = os.environ.get("CHATSYNC_TEST_CODEX")
 FIXTURE = os.environ.get("CHATSYNC_TEST_FIXTURE")
@@ -74,7 +74,7 @@ class CodexIntegration(unittest.TestCase):
             self.assertGreaterEqual(len(manifest["nodes"]), 3)
             print("TERMINAL setup, inspect, project selection and dry-run")
             profile = root / "terminal-config.json"
-            program = Path(__file__).resolve().parents[1] / "chat_sync.py"
+            program = Path(__file__).resolve().parents[2] / "chat_sync.py"
             def command(*argv):
                 result = subprocess.run([sys.executable, str(program), "--config", str(profile), *map(str, argv)],
                                         capture_output=True, text=True, encoding="utf-8", timeout=60,
@@ -200,6 +200,18 @@ class CodexIntegration(unittest.TestCase):
             moved.mkdir()
             self.assertEqual(import_bundle(fourth, multi_mapped, {str(workspace): str(moved), second_source: str(target_b)},
                                           selected=[two_manifest["chats"][0]["logical_id"]])[0]["action"], "relocate")
+            print("EXACT selected branch and progress reporting")
+            fifth_home = root / "fifth-home"
+            fifth_home.mkdir()
+            fifth = make_config(fifth_home, EXE, root / "exchange", root / "fifth-state")
+            progress_messages = []
+            chosen_node = two_manifest["chats"][1]["node"]
+            one_branch = import_bundle(fifth, multi_mapped, maps, selected_nodes=[chosen_node],
+                                       progress=progress_messages.append)
+            self.assertEqual(len(one_branch), 1)
+            self.assertEqual(len(inventory(fifth)[0]), 1)
+            self.assertIn("Import complete", progress_messages)
+            self.assertEqual(one_branch[0]["title"], two_manifest["chats"][1]["title"])
             print("NESTED metadata-only fork dependencies")
             with Codex(EXE, dest_home) as rpc:
                 nested = rpc.call("thread/fork", {"threadId": branch[0]["thread_id"], "excludeTurns": True,

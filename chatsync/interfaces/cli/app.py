@@ -2,14 +2,15 @@ import argparse
 import json
 import os
 from pathlib import Path
-import shutil
 import subprocess
 import sys
 
-from .bundle import normalized_path, read_bundle
-from .config import SyncError, atomic_json, config_path, load_config, make_config, relocate_state
-from .engine import export_chats, import_bundle, inventory, load_ledger, rollback
-from .rpc import Codex, executable_version
+from ...core.bundle import normalized_path, read_bundle
+from ...core.config import SyncError, atomic_json, config_path, load_config, make_config, relocate_state
+from ...core.engine import export_chats, import_bundle, inventory, load_ledger, rollback
+from ...core.rpc import Codex, executable_version
+
+from ...core.discovery import suggest_executable
 
 
 def choose(rows, label):
@@ -48,18 +49,6 @@ def ask_path(label, previous=""):
     if not value:
         raise SyncError(label + " is required.")
     return value
-
-
-def suggest_executable():
-    executable = shutil.which("codex")
-    if executable and Path(executable).suffix.lower() not in (".ps1", ".cmd", ".bat"):
-        return executable
-    if executable:
-        base = Path(executable).parent / "node_modules" / "@openai" / "codex" / "node_modules"
-        matches = list(base.glob("@openai/codex-*/vendor/*/bin/codex.exe"))
-        if matches:
-            return str(matches[0])
-    return ""
 
 
 def setup(args):
