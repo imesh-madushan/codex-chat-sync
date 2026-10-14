@@ -16,6 +16,14 @@ cd chatsync/interfaces/gui/web && npm install && npm run build   # once per mach
 python chat_sync_gui.py            # Windows: run-gui.cmd
 ```
 
+On Windows, `run-gui.cmd` starts the application with `pythonw.exe` and
+returns immediately, so it does not keep a console window open. It uses
+`CHATSYNC_PYTHON`'s sibling `pythonw.exe` when configured, otherwise the local
+virtual environment, the standard per-user installation, or `pyw -3`.
+A double-clicked CMD launcher may briefly show a console while starting;
+it closes after dispatch. For startup errors and console diagnostics, run
+`python chat_sync_gui.py` directly in the same Python environment.
+
 ## Develop the UI
 
 ```text
