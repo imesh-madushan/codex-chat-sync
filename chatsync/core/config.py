@@ -66,7 +66,7 @@ def make_config(codex_home, codex_executable, exchange_dir, state_dir, previous=
     if codex_home_path == state or codex_home_path.is_relative_to(state):
         raise SyncError("Use a dedicated state folder, not the Codex data folder or one of its parents.")
     if state == exchange or state.is_relative_to(exchange) or exchange.is_relative_to(state):
-        raise SyncError("Local state and the exchange folder must be separate; keep state outside synced folders.")
+        raise SyncError("Local state and the bundle folder must be separate; keep state on this device.")
     if previous.get("codex_home") and previous["codex_home"] != result["codex_home"]:
         result["device_id"] = str(uuid.uuid4())
     result.update(version=1, device_id=result.get("device_id") or str(uuid.uuid4()),

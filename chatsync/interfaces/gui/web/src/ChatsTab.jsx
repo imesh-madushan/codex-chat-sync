@@ -134,7 +134,7 @@ export default function ChatsTab({ busy, run, note, data, archived, setArchived,
       {done && (
         <Modal title="Export complete" onClose={() => setDone(null)}
           actions={<><button className="btn ghost" onClick={() => setDone(null)}>Close</button><button className="btn primary" onClick={() => { setDone(null); goImport(); }}>Go to Import</button></>}>
-          <p>Your bundle is saved in the exchange folder. Let your file-sync service carry it to the other computer, then import it there.</p>
+          <p>Your bundle is saved in the exchange folder. Copy it to the other device using a USB drive, a shared/network folder, or any file-transfer method, then import it there.</p>
           <code className="block">{done}</code>
         </Modal>
       )}

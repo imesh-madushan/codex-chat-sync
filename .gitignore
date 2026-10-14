@@ -8,3 +8,9 @@ dist/
 validation/
 
 node_modules/
+
+# Ship the GUI's prebuilt interface so Node.js/npm is optional for users.
+!chatsync/interfaces/gui/web/dist/
+!chatsync/interfaces/gui/web/dist/**
+# Machine-local application shortcut produced by setup.py.
+/Codex Chat Sync.lnk

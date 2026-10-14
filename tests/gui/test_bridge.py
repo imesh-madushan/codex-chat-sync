@@ -59,9 +59,9 @@ class BridgeTests(unittest.TestCase):
 
     def test_results_are_json_safe_and_errors_never_raise(self):
         settings = self.api.get_settings()
-        self.assertEqual(settings["data"]["settings_path"], "/tmp/settings.json")
+        self.assertEqual(settings["data"]["settings_path"], str(Path("/tmp/settings.json")))
         snapshot = self.api.load_snapshot(False)
-        self.assertEqual(snapshot["data"]["bundles"], [{"path": "/ex/a.chatbundle.zip", "name": "a.chatbundle.zip"}])
+        self.assertEqual(snapshot["data"]["bundles"], [{"path": str(Path("/ex/a.chatbundle.zip")), "name": "a.chatbundle.zip"}])
         bundle = self.api.load_bundle("/ex/a.chatbundle.zip")
         self.assertEqual((bundle["data"]["chats"][0]["turns"], bundle["data"]["hash"]), (2, "fingerprint"))
         self.assertEqual(self.api.review_import("p", ["t"], {}, {}, "x"), {"ok": False, "error": "bundle changed"})
@@ -77,7 +77,7 @@ class BridgeTests(unittest.TestCase):
         self.assertIn("Wait", refused["error"])
         self.assertTrue(self.api.preview("t")["ok"])  # read-only preview is not exclusive
         worker.join()
-        self.assertEqual(outcome, {"ok": True, "data": {"path": "/ex/new.zip"}})
+        self.assertEqual(outcome, {"ok": True, "data": {"path": str(Path("/ex/new.zip"))}})
         self.assertTrue(self.api._on_closing())
         self.assertTrue(any("working" in call for call in self.window.calls))
 

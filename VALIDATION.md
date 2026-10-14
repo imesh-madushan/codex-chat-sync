@@ -38,7 +38,7 @@ The Codex CLI resume command opened the imported copy and displayed its title, d
 - Tested histories include tool/reasoning records and synthetic branch/image inputs. Compacted histories, remote file-ID-only attachments, very large conversations, interrupted histories and future Codex versions have not received equivalent live acceptance coverage. Verification rejects incompatible imports before production registration.
 - Python 3.11+ is required. Windows has device-level acceptance coverage; macOS/Linux do not yet have equivalent coverage.
 - Updates retain earlier copies. Rollback archives imported copies rather than deleting messages. Whole-project selection uses native project membership; folder selection covers chats whose membership is empty.
-- An existing file-transfer service carries immutable bundles. Automatic import/watch scheduling is not part of this release.
+- Users transfer immutable bundles by any method, such as copying to a USB drive or shared/network folder. Automatic import/watch scheduling is not part of this release.
 
 ## CLI-only core restructure (0.2.0)
 
@@ -56,3 +56,22 @@ The existing CLI launcher and help output were also verified.
 This run verifies the new package layout locally. The earlier two-device
 results above describe the original release; the restructure has not yet
 been rerun on the second device or on macOS/Linux.
+
+## Python setup and included GUI resources
+
+The complete main application passed all 29 tests on Windows with Python 3.14
+and Codex CLI 0.162.1. Seven setup/launch checks cover complete resources without
+npm, missing assets, failed build output, resource/path boundaries, CLI argument
+forwarding and detached GUI startup. GUI bridge assertions now use native paths
+on each operating system. Native migration checks ran in isolated data folders
+without changing production chats or invoking a model.
+
+Both normal setup using included resources and an explicit npm frontend rebuild
+completed successfully. Setup installed/verified dependencies inside the project
+virtual environment and produced a verified Windows windowless shortcut. The
+Python launcher opened the desktop application and forwarded CLI help correctly.
+The no-npm path was verified with npm discovery disabled in tests.
+
+The shipped GUI resources are included in version control. Device shortcuts,
+virtual environments, node_modules and private evidence remain ignored. Setup
+and interface acceptance on macOS/Linux remain unverified.

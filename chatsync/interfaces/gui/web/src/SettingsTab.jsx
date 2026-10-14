@@ -6,8 +6,8 @@ const FIELDS = [
   { key: "device_name", label: "Device label", kind: "text", hint: "Shown on branches, e.g. “home-pc”." },
   { key: "codex_home", label: "Codex data folder", kind: "folder", hint: "Usually ~/.codex" },
   { key: "codex_executable", label: "Codex executable", kind: "file", hint: "On Windows pick the real codex.exe, not the .cmd/.ps1 wrapper." },
-  { key: "exchange_dir", label: "Bundle exchange folder", kind: "folder", hint: "A folder your file-sync service (OneDrive, Syncthing…) already shares between devices." },
-  { key: "state_dir", label: "Local state folder", kind: "folder", hint: "Keep this OUTSIDE any synced folder; it holds this device's receipts." },
+  { key: "exchange_dir", label: "Bundle exchange folder", kind: "folder", hint: "Any folder where you want to save exported bundles. Transfer them yourself, or use a shared/network folder." },
+  { key: "state_dir", label: "Local state folder", kind: "folder", hint: "Keep this on this device, separate from your bundle folder; it holds local receipts and imported attachments." },
 ];
 
 export default function SettingsTab({ busy, run, note, settings, setSettings, afterSave }) {

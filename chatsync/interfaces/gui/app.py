@@ -4,7 +4,7 @@ This module is an *interface*: it depends only on ``chatsync.core`` (through
 ``ChatSyncService``) and never on another interface, exactly like the CLI.
 pywebview is imported lazily, so importing this module needs no GUI packages.
 
-Run:   python chat_sync_gui.py            (uses web/dist built by `npm run build`)
+Run:   python chat_sync_gui.py            (uses the included web/dist interface files)
 Dev:   python chat_sync_gui.py --dev      (expects `npm run dev` on http://localhost:5173)
 """
 import argparse
@@ -190,7 +190,7 @@ def main(argv=None):
     args = parser.parse_args(argv)
     page = web_root() / "dist" / "index.html"
     if not args.dev and not page.exists():
-        print("Build the interface first:  cd chatsync/interfaces/gui/web && npm install && npm run build",
+        print("Interface files are missing. Run python setup.py, or download a complete project copy with the included GUI resources.",
               file=sys.stderr)
         return 1
     try:

@@ -56,8 +56,8 @@ def setup(args):
     previous = load_config(target) if target.exists() else {}
     home = args.codex_home or ask_path("Codex data folder", previous.get("codex_home", str(Path.home() / ".codex")))
     exe = args.codex_executable or ask_path("Codex executable", previous.get("codex_executable", suggest_executable()))
-    exchange = args.exchange_dir or ask_path("Bundle exchange folder (your synced folder)", previous.get("exchange_dir", ""))
-    state = args.state_dir or ask_path("Local state folder (outside synced folders)", previous.get("state_dir", str(target.parent / "state")))
+    exchange = args.exchange_dir or ask_path("Bundle folder (save exported files here)", previous.get("exchange_dir", ""))
+    state = args.state_dir or ask_path("Local state folder (keep on this device)", previous.get("state_dir", str(target.parent / "state")))
     config = make_config(home, exe, exchange, state, previous)
     if args.device_name:
         config["device_name"] = args.device_name

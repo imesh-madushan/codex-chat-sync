@@ -1,79 +1,160 @@
 # Codex Chat Sync
 
-A standalone terminal tool for moving selected Codex chats between devices. Python 3.11+ and an installed Codex CLI are the only runtime requirements. No web server, hosted service, Python packages, SSH, or Syncthing API access.
+Move selected Codex conversations between computers using a desktop application
+or the command line. Select multiple chats or projects, export them into one
+bundle, transfer the file, and import the conversations where you want to continue.
 
-## Start
+The application does not transfer files between devices automatically. Use any
+method you prefer: copy/paste, a USB drive, a shared or network folder, or your
+existing file-transfer service. No particular service is required.
 
-From this folder, run:
+## Get started
 
-```powershell
-python chat_sync.py setup
-python chat_sync.py
-```
+You need Python 3.11 or newer and an installed Codex CLI on each computer.
+The desktop interface also needs its Python dependencies, which setup installs.
+On Windows, the GUI uses the system webview; if it reports a missing WebView2
+runtime, install that runtime and launch again.
 
-Windows launcher:
-
-```powershell
-.\run.cmd setup
-.\run.cmd
-```
-
-`run.cmd` uses `CHATSYNC_PYTHON` when set, then the standard per-user Python installation, then the `py -3` launcher. For another Python installation, set `CHATSYNC_PYTHON` to the interpreter’s absolute path. Other operating systems run `python3 chat_sync.py` directly.
-
-If `python` opens the Microsoft Store, use the full path to your installed Python executable instead. On Windows, setup requires the actual `codex.exe`, rather than the npm `.cmd`/PowerShell wrapper. An installed npm executable is suggested when found; you can enter any other installation.
-
-Setup asks for your Codex data folder, Codex executable, bundle exchange folder and a **local state folder outside your synced folders**. Paths are entered/confirmed by you and saved per device. Settings are independent of the account name, project location and device pair. Settings → Edit device paths changes them later. Each device uses its own settings and receipts, even when this program's source folder is synced.
-
-Default settings: `%LOCALAPPDATA%\CodexChatSync\config.json` on Windows; `~/.local/share/CodexChatSync/config.json` elsewhere. Override with `--config PATH` before the command, or `CHATSYNC_CONFIG`.
-
-## Configuration examples
-
-The following locations illustrate a Windows configuration. Environment variables resolve to the current account; project and exchange folders can be placed elsewhere.
-
-| Setting | Example location |
-|---|---|
-| Codex data | `%USERPROFILE%\.codex` |
-| Local state | `%LOCALAPPDATA%\CodexChatSync\state` |
-| Bundle exchange | `D:\Shared\ChatBundles` |
-| Project folder | `D:\Projects\sample-app` |
-
-In PowerShell, expand environment variables with `$env:` when passing arguments:
-
-```powershell
-.\run.cmd setup --codex-home "$env:USERPROFILE\.codex" --exchange-dir "D:\Shared\ChatBundles" --state-dir "$env:LOCALAPPDATA\CodexChatSync\state"
-```
-
-Setup prompts for the Codex executable if it is not supplied. When entering a path in an interactive prompt, use the resolved absolute path; the `%VARIABLE%` notation in the table is documentation notation.
-
-## Export and import
-
-The export menu supports chats across projects, all chats in multiple selected projects, or chats selected by folder. Enter `1,3-5` or `all` to select multiple entries. Unassigned ordinary chats are included in the chat picker. Project membership and folder grouping are separate options because older Codex versions sometimes leave project membership empty.
-
-Each export produces one immutable `.chatbundle.zip`. Put the exchange folder wherever your existing file-transfer/sync service runs. The tool handles export and import; your transport copies the bundle between devices. It never automatically imports every file that arrives.
-
-On import, choose the bundled chats and map their source folders to existing folders on this device. You can choose existing Codex projects; project chats can also recreate a native project. Folder/project mappings are saved and can be edited in Settings. Multiple selected chats may use different destination mappings.
-
-The tool validates the bundle and reconstructs all selected history in a temporary, unauthenticated Codex data folder before adding copies to your actual Codex data folder. It checks completed turns again after restarting. Existing raw conversations and databases are never replaced or directly edited.
-
-Import results:
-
-- `same`: the completed history is already available; no duplicate is created.
-- `stale`: a local conversation already includes the incoming history; nothing is replaced.
-- `update`: the incoming history extends a local version; a new resumable snapshot is created and the earlier copy remains available.
-- `branch`: the histories have different messages/content; both survive. The new title names its source device.
-- `new`: this logical chat has not been imported here before.
-- `relocate`: the same completed history exists in a different folder/project; a new copy uses the changed mapping.
-
-Continue using the returned resume ID: `codex resume ID`. Close the same chat in other local clients if Codex reports an exclusive writer lock. The desktop may need to be reopened to refresh newly registered chats. Native project assignment is verified through the protocol; older desktop builds also maintain a separate sidebar project cache, so their sidebar may require opening the chat and assigning its project in the app. This tool does not edit that private cache.
-
-## Commands
+Download or clone the complete project. In its folder, run:
 
 ```text
+python setup.py
+python launch.py
+```
+
+On macOS/Linux, use `python3` if that is your Python command. Windows users can
+use `py -3` if `python` opens the Microsoft Store.
+
+Setup creates `.venv` inside this project, installs the available interfaces'
+Python dependencies, and checks that the included GUI files are present. It
+does not change your global Python packages or saved chat settings. Dependency
+installation requires internet access unless the packages are already available.
+
+**Node.js/npm is optional.** The project includes the built GUI files, so normal
+users do not need to build the frontend. If those files are missing, setup can
+rebuild them when npm is installed, otherwise it explains how to get a complete copy.
+
+On Windows, setup creates **Codex Chat Sync.lnk** in this folder. Double-click
+that shortcut to open the application without a terminal. Keep the project at
+the same location, or rerun setup after moving it. CMD launchers are optional;
+you do not need them for the standard setup and launch flow.
+
+For a CLI-only installation:
+
+```text
+python setup.py --interface cli
+python launch.py --interface cli
+```
+
+The CLI can also run directly with `python chat_sync.py`; it needs no third-party
+Python packages. Setup prepares the Python application; it does not create an
+executable or installer.
+
+## Configure each computer
+
+Open **Settings**, enter the following, and click **Save device settings**:
+
+| Setting | What to choose |
+|---|---|
+| Device label | A name that helps you identify where an imported branch came from. |
+| Codex data folder | Your existing Codex data folder, usually `~/.codex`. |
+| Codex executable | The installed executable. On Windows, select the actual `codex.exe`, not a `.cmd` or `.ps1` wrapper. |
+| Bundle exchange folder | Any folder where exported bundles should be saved. It can be local, removable, shared, or on a network drive. |
+| Local state folder | A dedicated folder on this computer for receipts and imported attachments, separate from the bundle folder. Keep it local. |
+
+Use **Browse** to select paths. Saving verifies the Codex connection. Each
+computer has its own settings; usernames, folder names, and project paths do not
+have to match. You can change these settings later.
+
+For example, bundles could be saved to `D:\ChatBundles`, with a destination
+project at `D:\Projects\sample-app`. On Windows, settings are saved under
+`%LOCALAPPDATA%\CodexChatSync\config.json`; elsewhere the default is
+`~/.local/share/CodexChatSync/config.json`. Override with `CHATSYNC_CONFIG` or
+`--config PATH`. The default local state folder is beside the settings file.
+
+## Export chats
+
+1. Finish active or interrupted turns in the conversations you want to export.
+2. Open **Chats**. Search or filter by project/folder to find conversations.
+3. Select the chats you want. **Select visible** selects the currently displayed
+   chats; selections can include multiple projects or unassigned conversations.
+4. Click **Export selected**, review the selection, and confirm **Export**.
+5. Note the saved `.chatbundle.zip` path shown when export completes.
+
+Each bundle is a snapshot of completed history. Export again after adding new
+messages; an old bundle does not update itself. Existing bundles are never overwritten.
+
+## Transfer the bundle
+
+Copy the completed `.chatbundle.zip` to the other computer by any method.
+For example, save it in a shared/network folder both computers can access, then
+open that same file on the destination. Alternatively, copy it onto a USB drive,
+then copy it into any folder on the destination computer.
+
+You can keep incoming files in the configured bundle folder for convenience,
+but **Import → Browse** can open a bundle from another location. Copy the complete
+file before importing. Do not copy this application's local state folder or
+Codex authentication files as part of the transfer.
+
+## Import and continue
+
+1. On the destination computer, open **Import** and **Browse** for the bundle.
+2. Click **Load bundle** and select the conversations to import.
+3. Map each selected source folder to an existing project folder on this computer.
+   Choose the destination project assignment where offered. Different chats can
+   use different folders, and the original source path does not have to exist here.
+4. Click **Review import** and inspect the planned actions.
+5. Click **Import selected**, then confirm **Import**.
+6. Use the resume command shown in the result, or open the imported conversation
+   in Codex. Reopen Codex if its chat list has not refreshed.
+
+The tool verifies reconstructed histories in an isolated temporary Codex folder
+before registering imported copies. Existing conversations are retained.
+Folder/project mappings are saved for later imports; the Settings page edits
+device paths, while importing lets you change the destination mappings.
+
+| Result | Meaning |
+|---|---|
+| New | A conversation is being imported here for the first time. |
+| Update | The incoming history extends a local version; a new snapshot is created. |
+| Branch | Both computers added different messages; both versions are preserved. |
+| Duplicate / same | This completed history is already available; no duplicate is created. |
+| Older / stale | The local conversation already includes the incoming history. |
+| Relocate | A new copy uses a changed destination folder/project mapping. |
+
+Branches remain separate conversations. The tool does not combine conflicting
+messages automatically. CLI `--chat` selects a logical chat family; the GUI can
+select individual bundled branch snapshots.
+
+Some Codex desktop versions maintain a separate project sidebar cache. If needed,
+open the imported chat and assign its project within Codex. For an exclusive-writer
+error, close that same chat in another local client and retry.
+
+## History and rollback
+
+Open **History**, select an import operation, and click **Roll back selected**.
+Review the confirmation before choosing **Archive copies**. Rollback archives
+that operation's imported copies; original conversations remain available and
+archived messages remain recoverable through Codex.
+
+Keep your device-local state backed up: receipts identify histories previously
+imported here. Changing the state folder copies managed receipts/assets and keeps
+the old folder as a backup. Retain that backup because older imported attachments
+may still reference it. Interrupted imports retain journals for diagnosis.
+
+## Command-line usage
+
+Use the plain menu with `python launch.py --interface cli`. The following direct
+commands are also available and need no GUI dependencies:
+
+```text
+python chat_sync.py setup
 python chat_sync.py list
 python chat_sync.py list --archived
 python chat_sync.py export --thread ID1 --thread ID2
 python chat_sync.py export --project PROJECT1 --project PROJECT2
 python chat_sync.py export --cwd "absolute/project/folder"
+python chat_sync.py export --thread ID --output "bundle.chatbundle.zip"
 python chat_sync.py export --thread ID --asset "absolute/file/path"
 python chat_sync.py inspect "bundle.chatbundle.zip"
 python chat_sync.py import "bundle.chatbundle.zip" --dry-run --map "SOURCE=DESTINATION"
@@ -81,62 +162,75 @@ python chat_sync.py import "bundle.chatbundle.zip" --yes --map "SOURCE=DESTINATI
 python chat_sync.py import "bundle.chatbundle.zip" --chat LOGICAL_ID1 --chat LOGICAL_ID2
 python chat_sync.py doctor
 python chat_sync.py rollback OPERATION_ID
+codex resume IMPORTED_ID
 ```
 
-`--map` and `--project-map SOURCE=LOCAL_PROJECT_ID` can each be repeated. `--chat` uses the logical IDs printed by `inspect`, while `export --thread` uses physical Codex IDs printed by `list`. Interactive import previews its actions before confirmation. `--yes` requires saved or explicit mappings.
+Replace the example IDs and paths with values from `list` or `inspect`.
+`--thread`, `--project`, `--cwd`, `--asset`, `--map`, and
+`--project-map SOURCE=LOCAL_PROJECT_ID` can be repeated. Interactive selectors
+accept numbers/ranges such as `1,3-5`, `all`, or `cancel`. Interactive import
+reviews its actions before confirmation; `--yes` requires saved or explicit mappings.
+Use `python chat_sync.py --config "settings.json" COMMAND` for a custom configuration.
 
-Rollback archives only the imported copies for that operation. Their messages remain recoverable through Codex's archive; originals remain available. Operation journals and pre-import receipt backups live in the configured local state folder. Interrupted imports retain their new files/evidence and a prepared/failed journal; they do not delete original chats. Keep local receipts backed up: they link logical chats to device-local IDs across repeated exports.
+## What travels with a chat?
 
-## Attachments and limits
+Bundles contain completed conversation history and required ancestor snapshots.
+Structured local image, audio, and file-mention inputs are included automatically;
+inline images remain in the transcript. Other documents can be included explicitly
+with CLI `--asset`.
 
-Structured local image, audio and file-mention inputs are included automatically. Inline image data remains in the transcript. Other files mentioned in prose, files read by tools, generated files, code repositories and environments are **not inferred or copied**: include needed documents explicitly with `--asset`, and transfer project files separately. Attachments are stored under the configured local state folder by content hash; user project files are never overwritten. Historical text and historical tool folders retain their original values. Changing the local state folder copies managed receipts/assets and retains the old folder as a backup; keep that backup because previously imported image paths may still reference it.
+Project source code, development environments, files only mentioned in prose,
+and authentication are not automatically copied. Transfer project files separately
+and configure accounts, tools, and plugins on the destination. Historical text and
+tool paths remain as recorded; imported attachments are stored in local state and
+do not overwrite project files. Treat exported bundles as private conversation data.
 
-Bundles contain private conversation text/tool outputs and may contain sensitive information that was already in the chat. They do not include account credentials, configuration files or whole Codex databases. Keep bundles and receipts private. Import rejects unsafe ZIP paths, duplicate members, symlinks, unsupported formats, invalid dependencies and failed checksums. Limits: 256 MiB per file, 1 GiB total uncompressed, 10,000 archive members. Authentication, plugins and tools must already be configured on the destination when you continue a conversation.
+## Troubleshooting
 
-## Compatibility and verification
+- **GUI does not start:** run `.venv\Scripts\python.exe chat_sync_gui.py` on Windows,
+  or `.venv/bin/python chat_sync_gui.py` elsewhere, to see startup diagnostics.
+- **Missing Python dependencies:** rerun `python setup.py` in this project folder.
+- **Missing interface files:** get a complete project copy, or install Node.js/npm
+  and run `python setup.py --rebuild`.
+- **Cannot find Codex:** select its real executable in Settings; CLI `doctor` checks
+  the configured executable and protocol.
+- **Export says history is incomplete:** finish the conversation's active/interrupted
+  turns in Codex, then export again.
+- **Destination folder is missing:** create or select the project folder before import.
 
-Codex path-resume and paginated-history APIs are experimental. The tool enables the required capability and fails when a build cannot reconstruct the exact exported history. It cannot promise compatibility with every future Codex storage version. Export currently requires all persisted turns to be completed; finish interrupted/active turns in Codex first.
+The interface is designed for Windows, macOS, and Linux, but current acceptance
+coverage is on Windows. Codex history APIs are experimental: incompatible history
+is rejected rather than imported without verification. See [VALIDATION.md](VALIDATION.md)
+for tested behavior and remaining limits.
 
-Unit tests:
+## Development
+
+To rebuild the shipped frontend after changing GUI source:
 
 ```text
-python -m unittest discover -s tests -v
+python setup.py --rebuild
 ```
 
-Real integration tests require `CHATSYNC_TEST_CODEX` (the actual executable) and `CHATSYNC_TEST_FIXTURE` (a local parent/fork regression fixture ZIP containing a nine-turn parent and its ten-turn descendant). They use isolated data folders, no accounts and no model calls. See `VALIDATION.md` for recorded results and remaining acceptance limits.
+This uses `npm ci` and `npm run build`. Commit the updated GUI `web/dist` files
+alongside source changes so users without npm receive the current interface.
+Other `dist`, `build`, `node_modules`, `.venv`, private fixtures, and local shortcuts
+remain ignored. Use `--skip-install` only when Python dependencies are already prepared.
 
-Protocol reference: [official Codex app-server documentation](https://learn.chatgpt.com/docs/app-server).
-
-## Source layout and branches
-
-`main` contains the standard-library CLI and shared application code. Interface
-branches merge core updates from `main`; UI dependencies stay on those branches.
-The `terminal-ui` branch contains the optional Textual interface.
+Interfaces register setup requirements in `chatsync/interfaces/NAME/setup.json`.
+The CLI and GUI are included on `main`; another interface can add its entry point,
+optional requirements, and optional frontend build paths without changing the engine.
+The optional terminal UI is maintained separately for now.
 
 ```text
-chatsync/
-  core/                   Configuration, executable discovery, RPC, bundles,
-                          migration engine and ChatSyncService
-  interfaces/
-    cli/app.py            Command parsing, prompts and plain terminal output
-tests/
-  core/                   Engine, service, bundle and dependency-boundary tests
-  cli/                    Command routing and selection tests
-chat_sync.py              Stable CLI entry point
-run.cmd                   Windows launcher
+chatsync/core/             Shared configuration, bundles, RPC, engine and service
+chatsync/interfaces/cli/   Plain command-line interface
+chatsync/interfaces/gui/   Desktop bridge and React interface
+setup.py                  Prepare the local environment and interface resources
+launch.py                 Launch an interface using that environment
+tests/                    Core, CLI, setup and GUI bridge checks
 ```
 
-Interfaces depend on `chatsync.core`; core never imports an interface framework.
-`ChatSyncService` provides settings, inventory, previews, bundle review, migration
-and operation history for future interfaces. Engine progress callbacks are optional;
-failing display callbacks cannot interrupt a migration. `import_bundle` also accepts
-`selected_nodes` to choose exact bundled branch snapshots, while the existing CLI
-`--chat` option continues to select logical chat families.
-
-Python module imports now use `chatsync.core.*` and
-`chatsync.interfaces.cli.app`. Existing shell commands, device settings, bundle
-format and receipt locations remain unchanged.
-
-Run the default checks with `python -m unittest discover -s tests -v`.
-Native integration checks additionally require `CHATSYNC_TEST_CODEX` and
-`CHATSYNC_TEST_FIXTURE`, as described in the integration test module.
+Run `python -m unittest discover -s tests -v`. Native integration checks additionally
+require `CHATSYNC_TEST_CODEX` and `CHATSYNC_TEST_FIXTURE`, and use isolated folders
+without accounts or model calls. Interfaces depend on the shared core; core never
+imports presentation frameworks. Standalone executable/installer releases are future work.

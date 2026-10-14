@@ -1,0 +1,10 @@
+{
+  "id": "gui",
+  "entry": "chat_sync_gui.py",
+  "requirements": "requirements-gui.txt",
+  "windowed": true,
+  "web": {
+    "directory": "chatsync/interfaces/gui/web",
+    "output": "chatsync/interfaces/gui/web/dist"
+  }
+}
